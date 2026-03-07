@@ -31,10 +31,6 @@ Le système est conçu autour d'une architecture client-serveur classique, avec 
   * Un moniteur de statut vérifie périodiquement si les agents sont toujours actifs et lève des alertes si un agent ne donne plus de nouvelles.
   * La journalisation est gérée via **SLF4J avec Logback**.
 
-*(Un diagramme d'architecture peut être créé avec des outils comme draw.io et inséré ici)*
-
----
-
 ## Définition du Protocole
 
 La communication entre l'agent et le serveur se fait via TCP et utilise le format JSON.
@@ -120,6 +116,20 @@ Ouvrez un terminal et exécutez la commande suivante :
 ```bash
 java -jar supervision-server/target/supervision-server-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
+
+> 💡 **Sous Windows**, la console peut utiliser un encodage qui casse les accents.
+> Il est recommandé d'utiliser le script `run_server.bat` qui active UTF-8 et lance le serveur correctement :
+>
+> ```bat
+> .\run_server.bat
+> ```
+>
+> Si vous préférez lancer manuellement, procédez comme suit :
+>
+> ```powershell
+> chcp 65001
+> java "-Dfile.encoding=UTF-8" -jar supervision-server/target/supervision-server-1.0-SNAPSHOT-jar-with-dependencies.jar
+> ```
 
 Le serveur va démarrer, créer le fichier de base de données `supervision.db` s'il n'existe pas, et se mettre en écoute des connexions.
 

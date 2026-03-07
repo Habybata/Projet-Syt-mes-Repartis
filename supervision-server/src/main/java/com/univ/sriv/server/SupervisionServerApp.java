@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.*;
@@ -69,6 +71,22 @@ public class SupervisionServerApp {
     }
 
     public static void main(String[] args) {
+        // Sur Windows, PowerShell/Console n'utilisent pas toujours UTF-8, ce qui peut casser
+        // l'affichage des accents. Pour une sortie correcte, exécutez :
+        //   chcp 65001
+        // et/ou lancez Java avec :
+        //   -Dfile.encoding=UTF-8
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            try {
+                PrintStream utf8Out = new PrintStream(System.out, true, "UTF-8");
+                PrintStream utf8Err = new PrintStream(System.err, true, "UTF-8");
+                System.setOut(utf8Out);
+                System.setErr(utf8Err);
+            } catch (UnsupportedEncodingException ignored) {
+                // Continue avec le comportement par défaut.
+            }
+        }
+
         new SupervisionServerApp().start();
     }
 }
