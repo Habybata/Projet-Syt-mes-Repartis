@@ -164,7 +164,7 @@ Pour simuler la connexion de nombreux clients simultanément, utilisez le script
 #### Sur Windows
 
 ```bat
-run_load_test.bat
+.\run_load_test.bat
 ```
 
 #### Sur Linux ou macOS
