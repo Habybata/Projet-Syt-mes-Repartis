@@ -1,14 +1,19 @@
 package com.univ.sriv.server;
 
-import com.univ.sriv.model.MetricData;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import com.univ.sriv.model.MetricData;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 /**
  * Gère la base de données, y compris le pool de connexions et les requêtes.
@@ -59,9 +64,9 @@ public class DatabaseManager {
 
     public List<MetricData> getLatestMetrics(String nodeId, int limit) {
         List<MetricData> metrics = new ArrayList<>();
-        String sql = "SELECT * FROM metrics WHERE nodeId = ? ORDER BY timestamp DESC LIMIT ?;";
+        String sql = "SELECT * FROM metrics WHERE nodeId LIKE ? ORDER BY timestamp DESC LIMIT ?;";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, nodeId);
+            pstmt.setString(1, "%" + nodeId + "%");
             pstmt.setInt(2, limit);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {

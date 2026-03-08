@@ -10,4 +10,4 @@ if not exist "%JAR%" (
   exit /b 1
 )
 
-java "-Dfile.encoding=UTF-8" -jar "%JAR%"
+java -Xmx1g "-Dfile.encoding=UTF-8" -jar "%JAR%"
