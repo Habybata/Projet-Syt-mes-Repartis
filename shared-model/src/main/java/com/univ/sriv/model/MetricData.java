@@ -1,5 +1,7 @@
 package com.univ.sriv.model;
 
+import java.util.Map;
+
 /**
  * Représente un objet de données de métrique collecté par un agent.
  * Cette classe est partagée entre le client (agent) et le serveur.
@@ -13,6 +15,10 @@ public class MetricData {
     private double memoryLoad; // Charge mémoire en pourcentage, ex: 62.0
     private double diskUsage; // Utilisation du disque en pourcentage, ex: 45.2
     private long uptime; // Temps de fonctionnement du système en secondes
+    
+    // Champs pour les services et les ports
+    private Map<String, String> services; // Nom du service -> Statut (ex: "HTTP" -> "OK")
+    private Map<Integer, Integer> ports;   // Numéro du port -> Statut (ex: 80 -> 1 pour Ouvert, 0 pour Fermé)
 
     /**
      * Constructeur par défaut nécessaire pour la désérialisation JSON.
@@ -86,17 +92,33 @@ public class MetricData {
         this.uptime = uptime;
     }
 
+    public Map<String, String> getServices() {
+        return services;
+    }
+
+    public void setServices(Map<String, String> services) {
+        this.services = services;
+    }
+
+    public Map<Integer, Integer> getPorts() {
+        return ports;
+    }
+
+    public void setPorts(Map<Integer, Integer> ports) {
+        this.ports = ports;
+    }
+
     @Override
     public String toString() {
         return "MetricData{" +
                "nodeId='" + nodeId + '\'' +
                ", timestamp=" + timestamp +
-               ", os='" + os + '\'' +
-               ", cpuType='" + cpuType + '\'' +
-               ", cpuLoad=" + String.format("%.2f", cpuLoad) + "%" +
-               ", memoryLoad=" + String.format("%.2f", memoryLoad) + "%" +
-               ", diskUsage=" + String.format("%.2f", diskUsage) + "%" +
+               ", cpu=" + String.format("%.2f", cpuLoad) + "%" +
+               ", mem=" + String.format("%.2f", memoryLoad) + "%" +
+               ", disk=" + String.format("%.2f", diskUsage) + "%" +
                ", uptime=" + uptime + "s" +
+               ", services=" + services +
+               ", ports=" + ports +
                '}';
     }
 }

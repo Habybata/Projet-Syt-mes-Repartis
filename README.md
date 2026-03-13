@@ -20,16 +20,16 @@ Le système est conçu autour d'une architecture client-serveur classique, avec 
 
 * **Agent (Client)** : une application Java légère qui s'exécute sur chaque machine à superviser.
   * Toutes les 30 secondes, il collecte des métriques système (charge CPU, mémoire, etc.).
-  * Il envoie ces métriques au serveur central via une connexion TCP socket, en utilisant un format JSON.
+  * **Nouveauté** : Il surveille désormais **6 services** (3 réseau, 3 applications) et **4 ports** réseau.
+  * **Alertes** : Il émet un avertissement local si la charge CPU, mémoire ou disque dépasse **90%**.
+  * Il envoie ces métriques au serveur central via une connexion TCP socket, en utilisant un format JSON, et peut recevoir en retour des commandes d'activation de service.
 
 * **Serveur (Central)** : une application Java multi-threadée qui centralise les informations.
   * Il utilise un **pool de threads (`ExecutorService`)** pour gérer efficacement un grand nombre de connexions clientes simultanées.
-  * Chaque connexion est gérée par un `Handler` dédié qui lit les données JSON.
-  * Les métriques reçues sont stockées dans une base de données **SQLite** pour la persistance.
-  * Un **pool de connexions (HikariCP)** est utilisé pour accéder à la base de données de manière performante et sécurisée.
-  * Il expose une **console d'administration (CLI)** pour visualiser l'état des agents et leurs métriques.
-  * Un moniteur de statut vérifie périodiquement si les agents sont toujours actifs et lève des alertes si un agent ne donne plus de nouvelles.
-  * La journalisation est gérée via **SLF4J avec Logback**.
+  * Chaque connexion est validée et gérée par un `Handler` dédié.
+  * Les métriques (incluant services et ports) sont stockées dans une base de données **SQLite**.
+  * Il expose une **console d'administration (CLI)** pour visualiser l'état des agents et leur envoyer des ordres d'activation (`UP`).
+  * Un moniteur de statut vérifie périodiquement si les agents sont toujours actifs (timeout de 90s).
 
 ## Définition du Protocole
 
@@ -44,13 +44,30 @@ L'agent envoie périodiquement un objet JSON avec la structure suivante :
   "nodeId": "agent-01",
   "timestamp": 1678886400000,
   "os": "Windows 10",
-  "cpuType": "Intel Core i7",
+  "cpuType": "x86_64",
   "cpuLoad": 35.5,
   "memoryLoad": 62.0,
   "diskUsage": 45.2,
-  "uptime": 12453
+  "uptime": 12453,
+  "services": {
+    "HTTP": "OK",
+    "SSH": "KO",
+    "Chrome": "OK",
+    ...
+  },
+  "ports": {
+    "80": 1,
+    "443": 1,
+    "22": 0,
+    ...
+  }
 }
 ```
+
+#### Message : Serveur -> Agent (Optionnel)
+
+Si une commande est en attente, le serveur répond avec une chaîne au format :
+`UP:<serviceName>` (ex: `UP:HTTP`)
 
 ---
 

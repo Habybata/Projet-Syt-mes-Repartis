@@ -22,6 +22,7 @@ public class SupervisionServerApp {
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final DatabaseManager dbManager = new DatabaseManager();
     private final ConcurrentHashMap<String, NodeStatus> activeNodes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> pendingCommands = new ConcurrentHashMap<>(); // nodeId -> commande
     private final ExecutorService clientPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     private final ScheduledExecutorService monitorScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -30,14 +31,14 @@ public class SupervisionServerApp {
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
         // Démarrage de la console et du moniteur de statut
-        new Thread(new AdminConsole(dbManager, activeNodes, this)).start();
+        new Thread(new AdminConsole(dbManager, activeNodes, pendingCommands, this)).start();
         monitorScheduler.scheduleAtFixedRate(new NodeStatusMonitor(activeNodes), 0, 60, TimeUnit.SECONDS);
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             logger.info("Serveur démarré sur le port {}.", PORT);
             while (running.get()) {
                 Socket clientSocket = serverSocket.accept();
-                clientPool.submit(new ClientHandler(clientSocket, dbManager, activeNodes));
+                clientPool.submit(new ClientHandler(clientSocket, dbManager, activeNodes, pendingCommands));
             }
         } catch (IOException e) {
             if (running.get()) {

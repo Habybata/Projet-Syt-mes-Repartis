@@ -18,11 +18,13 @@ public class AdminConsole implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(AdminConsole.class);
     private final DatabaseManager dbManager;
     private final ConcurrentHashMap<String, NodeStatus> activeNodes;
+    private final ConcurrentHashMap<String, String> pendingCommands;
     private final SupervisionServerApp serverApp;
 
-    public AdminConsole(DatabaseManager dbManager, ConcurrentHashMap<String, NodeStatus> activeNodes, SupervisionServerApp serverApp) {
+    public AdminConsole(DatabaseManager dbManager, ConcurrentHashMap<String, NodeStatus> activeNodes, ConcurrentHashMap<String, String> pendingCommands, SupervisionServerApp serverApp) {
         this.dbManager = dbManager;
         this.activeNodes = activeNodes;
+        this.pendingCommands = pendingCommands;
         this.serverApp = serverApp;
     }
 
@@ -42,7 +44,7 @@ public class AdminConsole implements Runnable {
     }
 
     private void processCommand(String command) {
-        String[] parts = command.split(" ", 2);
+        String[] parts = command.split(" ", 3);
         switch (parts[0].toLowerCase()) {
             case "list-nodes":
                 listNodes();
@@ -50,6 +52,10 @@ public class AdminConsole implements Runnable {
             case "show-metrics":
                 if (parts.length > 1) showMetrics(parts[1]);
                 else System.out.println("Usage: show-metrics <nodeId>");
+                break;
+            case "activate-service":
+                if (parts.length > 2) activateService(parts[1], parts[2]);
+                else System.out.println("Usage: activate-service <nodeId> <serviceName>");
                 break;
             case "help":
                 displayHelp();
@@ -77,11 +83,22 @@ public class AdminConsole implements Runnable {
         System.out.printf("--- 5 Dernières Métriques pour '%s' ---%n", nodeId);
         List<MetricData> metrics = dbManager.getLatestMetrics(nodeId, 5);
         if (metrics.isEmpty()) System.out.println("Aucune métrique trouvée.");
-        else metrics.forEach(m -> System.out.println(m.toString()));
+        else {
+            metrics.forEach(m -> {
+                System.out.println(m.toString());
+                System.out.println("  Services : " + m.getServices());
+                System.out.println("  Ports    : " + m.getPorts());
+            });
+        }
         System.out.println("---------------------------------------");
     }
 
+    private void activateService(String nodeId, String serviceName) {
+        pendingCommands.put(nodeId, "UP:" + serviceName);
+        System.out.printf("Commande d'activation pour '%s' (nœud '%s') mise en attente.%n", serviceName, nodeId);
+    }
+
     private void displayHelp() {
-        System.out.println("Commandes: list-nodes, show-metrics <nodeId>, exit, help.");
+        System.out.println("Commandes: list-nodes, show-metrics <nodeId>, activate-service <nodeId> <service>, exit, help.");
     }
 }

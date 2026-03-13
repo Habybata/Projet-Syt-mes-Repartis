@@ -1,4 +1,6 @@
 com\univ\sriv\server\NodeStatusMonitor.class
+com\univ\sriv\server\DatabaseManager$2.class
+com\univ\sriv\server\DatabaseManager$1.class
 com\univ\sriv\server\SupervisionServerApp.class
 com\univ\sriv\server\AdminConsole.class
 com\univ\sriv\server\ClientHandler.class

@@ -58,23 +58,57 @@ public class AgentApp {
         data.setTimestamp(Instant.now().toEpochMilli());
         data.setOs(metricsCollector.getOsName());
         data.setCpuType(metricsCollector.getCpuType());
-        data.setCpuLoad(metricsCollector.collectCpuLoad());
-        data.setMemoryLoad(metricsCollector.collectMemoryLoad());
-        data.setDiskUsage(metricsCollector.collectDiskUsage());
+        
+        double cpu = metricsCollector.collectCpuLoad();
+        double mem = metricsCollector.collectMemoryLoad();
+        double disk = metricsCollector.collectDiskUsage();
+        
+        data.setCpuLoad(cpu);
+        data.setMemoryLoad(mem);
+        data.setDiskUsage(disk);
         data.setUptime(metricsCollector.collectUptime());
+        
+        // Services et Ports
+        data.setServices(metricsCollector.collectServicesStatus());
+        data.setPorts(metricsCollector.collectPortsStatus());
+
+        // Alerte si charge > 90%
+        if (cpu > 90.0) logger.warn("ALERTE : Charge CPU critique sur {} : {}%", nodeId, String.format("%.2f", cpu));
+        if (mem > 90.0) logger.warn("ALERTE : Charge Mémoire critique sur {} : {}%", nodeId, String.format("%.2f", mem));
+        if (disk > 90.0) logger.warn("ALERTE : Utilisation Disque critique sur {} : {}%", nodeId, String.format("%.2f", disk));
 
         String jsonMetrics = gson.toJson(data);
 
         try (Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()))) {
 
+            // Envoi des métriques
             out.println(jsonMetrics);
-            logger.info("Métriques envoyées avec succès pour le nœud '{}'.", nodeId);
+            logger.info("Métriques envoyées pour le nœud '{}'.", nodeId);
+
+            // Lecture de la réponse du serveur (pour d'éventuelles commandes comme UP service)
+            String response = in.readLine();
+            if (response != null && !response.isEmpty()) {
+                logger.info("Commande reçue du serveur : {}", response);
+                handleServerCommand(response);
+            }
 
         } catch (ConnectException e) {
-            logger.warn("Serveur injoignable. Réessai dans {} secondes.", COLLECTION_INTERVAL_SECONDS);
+            logger.warn("Serveur injoignable ({}:{}). Réessai dans {}s.", SERVER_HOST, SERVER_PORT, COLLECTION_INTERVAL_SECONDS);
         } catch (IOException e) {
-            logger.error("Erreur d'E/S lors de l'envoi des métriques : {}", e.getMessage());
+            logger.error("Erreur d'E/S lors de la communication avec le serveur : {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Gère les commandes reçues du serveur (ex: "UP:HTTP").
+     */
+    private void handleServerCommand(String command) {
+        if (command.startsWith("UP:")) {
+            String service = command.substring(3);
+            logger.info("ACTION : Activation du service '{}' demandée par le serveur.", service);
+            // Ici, on simulerait l'activation du service
         }
     }
 

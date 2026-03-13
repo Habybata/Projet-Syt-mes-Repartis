@@ -1,5 +1,7 @@
 package com.univ.sriv.server;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.univ.sriv.model.MetricData;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -9,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Gère la base de données, y compris le pool de connexions et les requêtes.
@@ -17,6 +20,7 @@ public class DatabaseManager {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseManager.class);
     private static final String JDBC_URL = "jdbc:sqlite:supervision.db";
     private HikariDataSource dataSource;
+    private final Gson gson = new Gson();
 
     public void initialize() {
         try {
@@ -34,14 +38,23 @@ public class DatabaseManager {
     private void createMetricsTable() throws SQLException {
         String sql = "CREATE TABLE IF NOT EXISTS metrics (" +
                      "id INTEGER PRIMARY KEY AUTOINCREMENT, nodeId TEXT NOT NULL, timestamp INTEGER NOT NULL," +
-                     "os TEXT, cpuType TEXT, cpuLoad REAL, memoryLoad REAL, diskUsage REAL, uptime INTEGER);";
+                     "os TEXT, cpuType TEXT, cpuLoad REAL, memoryLoad REAL, diskUsage REAL, uptime INTEGER," +
+                     "services TEXT, ports TEXT);";
         try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
+            
+            // Migration simple si les colonnes manquent (pour les anciennes bases)
+            try {
+                stmt.execute("ALTER TABLE metrics ADD COLUMN services TEXT;");
+                stmt.execute("ALTER TABLE metrics ADD COLUMN ports TEXT;");
+            } catch (SQLException ignored) {
+                // Colonnes déjà présentes
+            }
         }
     }
 
     public void insertMetric(MetricData metric) {
-        String sql = "INSERT INTO metrics(nodeId, timestamp, os, cpuType, cpuLoad, memoryLoad, diskUsage, uptime) VALUES(?,?,?,?,?,?,?,?);";
+        String sql = "INSERT INTO metrics(nodeId, timestamp, os, cpuType, cpuLoad, memoryLoad, diskUsage, uptime, services, ports) VALUES(?,?,?,?,?,?,?,?,?,?);";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, metric.getNodeId());
             pstmt.setLong(2, metric.getTimestamp());
@@ -51,6 +64,8 @@ public class DatabaseManager {
             pstmt.setDouble(6, metric.getMemoryLoad());
             pstmt.setDouble(7, metric.getDiskUsage());
             pstmt.setLong(8, metric.getUptime());
+            pstmt.setString(9, gson.toJson(metric.getServices()));
+            pstmt.setString(10, gson.toJson(metric.getPorts()));
             pstmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Erreur lors de l'insertion des métriques pour {}", metric.getNodeId(), e);
@@ -74,6 +89,13 @@ public class DatabaseManager {
                     metric.setMemoryLoad(rs.getDouble("memoryLoad"));
                     metric.setDiskUsage(rs.getDouble("diskUsage"));
                     metric.setUptime(rs.getLong("uptime"));
+                    
+                    // Désérialisation des Maps
+                    metric.setServices(gson.fromJson(rs.getString("services"), 
+                        new TypeToken<Map<String, String>>(){}.getType()));
+                    metric.setPorts(gson.fromJson(rs.getString("ports"), 
+                        new TypeToken<Map<Integer, Integer>>(){}.getType()));
+                        
                     metrics.add(metric);
                 }
             }
