@@ -1,31 +1,56 @@
 @echo off
 REM Script de test de charge pour le système de supervision
-REM Lance 50 instances de l'agent en arrière-plan.
+REM Lance plusieurs instances de l'agent en arrière-plan.
 
 SETLOCAL EnableDelayedExpansion
 
-SET AGENT_JAR="agent-client\target\agent-client-1.0-SNAPSHOT-jar-with-dependencies.jar"
+REM Assure que le script s'exécute depuis son dossier (pour que les chemins relatifs fonctionnent)
+pushd "%~dp0"
 
-IF NOT EXIST %AGENT_JAR% (
+set "AGENT_JAR=agent-client\target\agent-client-1.0-SNAPSHOT-jar-with-dependencies.jar"
+
+IF NOT EXIST "%AGENT_JAR%" (
     echo Fichier JAR de l'agent non trouvé.
     echo Veuillez compiler le projet avec 'mvn clean package'.
+    popd
     goto :eof
 )
 
-echo Lancement de 50 agents en arrière-plan...
+REM Paramètres configurables (argument 1 = nombre d'agents, 2 = Xmx, 3 = pause entre démarrages)
+set "NUM_AGENTS=%~1"
+set "MAX_HEAP=%~2"
+set "PAUSE_SEC=%~3"
 
-for /L %%i in (1,1,50) do (
+if "%NUM_AGENTS%"=="" set "NUM_AGENTS=100"
+if "%MAX_HEAP%"=="" set "MAX_HEAP=128m"
+if "%PAUSE_SEC%"=="" set "PAUSE_SEC=1"
+
+REM Options Java par défaut pour limiter l'empreinte mémoire par JVM.
+set "JAVA_OPTS=-Xms64m -Xmx%MAX_HEAP% -XX:MaxRAMPercentage=30 -XX:+UseG1GC"
+
+echo Lancement de %NUM_AGENTS% agents en arrière-plan (max heap = %MAX_HEAP%, pause = %PAUSE_SEC%s)...
+
+echo NOTE: 100 JVMs utilisent beaucoup de mémoire. Si vous dépassez la mémoire, réduisez le nombre d'agents ou le paramètre Xmx.
+
+echo Pour démarrer avec : run_load_test.bat 50 64m 2
+
+for /L %%i in (1,1,%NUM_AGENTS%) do (
     REM Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
     set "NODE_ID=agent-%%i"
-    if %%i LSS 10 (
+    if %%i LSS 100 (
         set "NODE_ID=agent-0%%i"
     )
 
     echo Lancement de l'agent !NODE_ID!
 
     REM Lance l'agent en arrière-plan sans ouvrir de nouvelle fenêtre de console
-    START /B java -jar %AGENT_JAR% !NODE_ID!
+    START "" /B java %JAVA_OPTS% -jar "%AGENT_JAR%" !NODE_ID!
+
+    REM Pause pour éviter de démarrer tous les JVM en même temps (réduit le pic mémoire)
+    timeout /T %PAUSE_SEC% /NOBREAK >nul
 )
 
-echo 50 agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
+popd
+
+echo %NUM_AGENTS% agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
 echo Pour arrêter les agents, vous devrez utiliser la commande 'taskkill /IM java.exe /F' (attention, cela peut fermer d'autres applications Java).
