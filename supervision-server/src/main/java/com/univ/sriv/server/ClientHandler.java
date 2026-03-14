@@ -64,6 +64,17 @@ public class ClientHandler implements Runnable {
                 // Insère en base
                 dbManager.insertMetric(metric);
 
+                // Journalisation des alertes de dépassement de seuil (> 90%) côté serveur
+                if (metric.getCpuLoad() > 90.0) {
+                    logger.warn("ALERTE SEUIL - Nœud '{}' : Charge CPU critique ({}%)", metric.getNodeId(), String.format("%.2f", metric.getCpuLoad()));
+                }
+                if (metric.getMemoryLoad() > 90.0) {
+                    logger.warn("ALERTE SEUIL - Nœud '{}' : Charge Mémoire critique ({}%)", metric.getNodeId(), String.format("%.2f", metric.getMemoryLoad()));
+                }
+                if (metric.getDiskUsage() > 90.0) {
+                    logger.warn("ALERTE SEUIL - Nœud '{}' : Utilisation Disque critique ({}%)", metric.getNodeId(), String.format("%.2f", metric.getDiskUsage()));
+                }
+
                 // Envoi d'une commande en attente (ex: UP service) si présente
                 String command = pendingCommands.remove(metric.getNodeId());
                 if (command != null) {
