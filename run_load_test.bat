@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 > nul
 REM Script de test de charge pour le système de supervision
 REM Lance plusieurs instances de l'agent en arrière-plan.
 
@@ -9,7 +10,7 @@ pushd "%~dp0"
 
 set "AGENT_JAR=agent-client\target\agent-client-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
-IF NOT EXIST "%AGENT_JAR%" (
+IF NOT EXIST %AGENT_JAR% (
     echo Fichier JAR de l'agent non trouvé.
     echo Veuillez compiler le projet avec 'mvn clean package'.
     popd
@@ -21,7 +22,7 @@ set "NUM_AGENTS=%~1"
 set "MAX_HEAP=%~2"
 set "PAUSE_SEC=%~3"
 
-if "%NUM_AGENTS%"=="" set "NUM_AGENTS=100"
+if "%NUM_AGENTS%"=="" set "NUM_AGENTS=50"
 if "%MAX_HEAP%"=="" set "MAX_HEAP=128m"
 if "%PAUSE_SEC%"=="" set "PAUSE_SEC=1"
 
@@ -30,27 +31,22 @@ set "JAVA_OPTS=-Xms64m -Xmx%MAX_HEAP% -XX:MaxRAMPercentage=30 -XX:+UseG1GC"
 
 echo Lancement de %NUM_AGENTS% agents en arrière-plan (max heap = %MAX_HEAP%, pause = %PAUSE_SEC%s)...
 
-echo NOTE: 100 JVMs utilisent beaucoup de mémoire. Si vous dépassez la mémoire, réduisez le nombre d'agents ou le paramètre Xmx.
+echo NOTE: 50 JVMs utilisent beaucoup de mémoire. Si vous dépassez la mémoire, réduisez le nombre d'agents ou le paramètre Xmx.
 
 echo Pour démarrer avec : run_load_test.bat 50 64m 2
 
-for /L %%i in (1,1,%NUM_AGENTS%) do (
+for /L %%i in (1,1,50) do (
     REM Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
     set "NODE_ID=agent-%%i"
-    if %%i LSS 100 (
+    if %%i LSS 50 (
         set "NODE_ID=agent-0%%i"
     )
 
-    echo Lancement de l'agent !NODE_ID!
+    echo [DÉMARRAGE] !NODE_ID! en cours...
 
     REM Lance l'agent en arrière-plan sans ouvrir de nouvelle fenêtre de console
-    START "" /B java %JAVA_OPTS% -jar "%AGENT_JAR%" !NODE_ID!
-
-    REM Pause pour éviter de démarrer tous les JVM en même temps (réduit le pic mémoire)
-    timeout /T %PAUSE_SEC% /NOBREAK >nul
+    START /B java -jar %AGENT_JAR% !NODE_ID!
 )
 
-popd
-
-echo %NUM_AGENTS% agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
+echo 50 agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
 echo Pour arrêter les agents, vous devrez utiliser la commande 'taskkill /IM java.exe /F' (attention, cela peut fermer d'autres applications Java).
