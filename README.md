@@ -16,21 +16,78 @@ Ce projet est une implémentation d'un système de supervision réseau basé sur
 
 ## Architecture
 
-Le système est conçu autour d'une architecture client-serveur classique, avec un focus sur la concurrence et la robustesse.
+Le système est conçu autour d'une architecture **client-serveur** classique, structurée en modules Maven séparés pour faciliter le développement, les tests et la maintenance.
 
-* **Agent (Client)** : une application Java légère qui s'exécute sur chaque machine à superviser.
-  * Toutes les 30 secondes, il collecte des métriques système (charge CPU, mémoire, etc.).
-  * Il envoie ces métriques au serveur central via une connexion TCP socket, en utilisant un format JSON.
+### Composants principaux
 
-* **Serveur (Central)** : une application Java multi-threadée qui centralise les informations.
-  * Il utilise un **pool de threads (`ExecutorService`)** pour gérer efficacement un grand nombre de connexions clientes simultanées.
-  * Chaque connexion est gérée par un `Handler` dédié qui lit les données JSON.
-  * Les métriques reçues sont stockées dans une base de données **SQLite** pour la persistance.
-  * Un **pool de connexions (HikariCP)** est utilisé pour accéder à la base de données de manière performante et sécurisée.
-  * Il expose une **console d'administration (CLI)** pour visualiser l'état des agents et leurs métriques.
-  * Un moniteur de statut vérifie périodiquement si les agents sont toujours actifs et lève des alertes si un agent ne donne plus de nouvelles.
-  * La journalisation est gérée via **SLF4J avec Logback**.
+* **Agent (Client)** : application Java légère exécutée sur chaque machine supervisée.
+  * Collecte périodique (30 s) des métriques système :
+    * ID du nœud, timestamp, OS, type de CPU
+    * charge CPU/mémoire, utilisation disque, uptime
+    * (extensions possibles : statut des services, ports, alertes)
+  * Sérialisation JSON des données avec **Gson**
+  * Envoi sur socket TCP vers le serveur central (`localhost:1234`)
 
+* **Serveur (Central)** : application Java multithreadée gérant l'ensemble des agents.
+  * **Écoute TCP** sur port 1234, pool de threads (`ExecutorService`) pour chaque connexion entrante.
+  * Un **ClientHandler** par connexion lit, désérialise et traite les métriques.
+  * **DatabaseManager** utilise **HikariCP** pour un pool de connexions vers une base SQLite
+    afin de stocker les métriques de manière persistante.
+  * **AdminConsole** fournit une CLI interactive : commandes `list-nodes`, `show-metrics`, `exit`, etc.
+  * Un **NodeStatusMonitor** détecte les nœuds inactifs (absents pendant > T secondes).
+  * Journaux via **SLF4J / Logback** (niveau DEBUG pour trafic, INFO pour events importants).
+
+### Flux de données et diagramme
+
+```mermaid
+flowchart LR
+    subgraph Client
+      A[AgentApp] -->|JSON/TCP| B(Server)
+      A --> MetricsCollector
+    end
+    subgraph Server
+      B[SupervisionServerApp] --> C[ClientHandler]
+      C --> D[DatabaseManager]
+      B --> E[AdminConsole]
+      B --> F[NodeStatusMonitor]
+      D --> SQLite[(SQLite DB)]
+    end
+```
+
+1. L'agent construit un objet métrique et le sérialise en JSON.
+2. Les données transitent sur TCP vers le serveur.
+3. Le serveur, via un thread du pool, désérialise et insère en base.
+4. La console permet de requêter la DB et d'administrer le système.
+5. Le moniteur révèle automatiquement les nœuds déconnectés.
+
+### Structure du code
+
+```
+/projet-supervision/
+|-- agent-client/             # Application client
+|   |-- src/main/java/com/univ/sriv/agent
+|   |   |-- AgentApp.java
+|   |   `-- MetricsCollector.java
+|   `-- pom.xml
+|
+|-- supervision-server/       # Application serveur
+|   |-- src/main/java/com/univ/sriv/server
+|   |   |-- SupervisionServerApp.java
+|   |   |-- ClientHandler.java
+|   |   |-- DatabaseManager.java
+|   |   |-- AdminConsole.java
+|   |   `-- NodeStatus*.java
+|   `-- pom.xml
+|
+|-- shared-model/             # Modèle partagé (MetricData, etc.)
+|   `-- pom.xml
+|-- run_load_test.bat         # Script de test de charge Windows
+|-- run_load_test.sh          # Script de test de charge Unix
+|-- pom.xml                   # POM parent multi-modules
+`-- README.md                 # Documentation (celle-ci)
+```
+
+Cette description remplace la nécessité d'un dessin externe ; elle reprend explicitement tous les composants et flux du système, tel qu'exigé par le cahier des charges du projet.
 ## Définition du Protocole
 
 La communication entre l'agent et le serveur se fait via TCP et utilise le format JSON.
