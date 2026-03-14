@@ -58,6 +58,31 @@ java -jar supervision-server/target/supervision-server-1.0-SNAPSHOT-jar-with-dep
 java -jar agent-client/target/agent-client-1.0-SNAPSHOT-jar-with-dependencies.jar agent-01
 ```
 
+## 🎮 Commandes et Utilisation
+
+### 1. Console d'Administration (Serveur)
+Une fois le serveur lancé, vous disposez d'une interface en ligne de commande (CLI) pour piloter le parc d'agents.
+
+| Commande | Description | Exemple |
+| :--- | :--- | :--- |
+| `list-nodes` | Liste tous les agents enregistrés et leur état (En ligne/Hors ligne). | `list-nodes` |
+| `show-metrics <ID>` | Affiche les 5 dernières métriques reçues pour un agent spécifique. | `show-metrics agent-01` |
+| `activate-service <ID> <S>` | Envoie un ordre d'activation (`UP`) pour un service au prochain contact de l'agent. | `activate-service agent-01 HTTP` |
+| `help` | Affiche la liste des commandes disponibles. | `help` |
+| `exit` | Arrête proprement le serveur et ferme les connexions à la base de données. | `exit` |
+
+### 2. Lancement de l'Agent (Client)
+L'agent nécessite un identifiant unique (`nodeId`) lors de son lancement pour être identifié par le serveur.
+
+```bash
+# Syntaxe
+java -jar agent-client.jar <nodeId>
+
+# Exemples
+java -jar agent-client.jar agent-01
+java -jar agent-client.jar machine-rh-02
+```
+
 ---
 
 ## 📊 Tests de Charge
