@@ -74,9 +74,9 @@ public class DatabaseManager {
 
     public List<MetricData> getLatestMetrics(String nodeId, int limit) {
         List<MetricData> metrics = new ArrayList<>();
-        String sql = "SELECT * FROM metrics WHERE nodeId = ? ORDER BY timestamp DESC LIMIT ?;";
+        String sql = "SELECT * FROM metrics WHERE nodeId LIKE ? ORDER BY timestamp DESC LIMIT ?;";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, nodeId);
+            pstmt.setString(1, "%" + nodeId + "%");
             pstmt.setInt(2, limit);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {

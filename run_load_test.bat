@@ -2,6 +2,8 @@
 REM Script de test de charge pour le système de supervision
 REM Lance 50 instances de l'agent en arrière-plan.
 
+SETLOCAL EnableDelayedExpansion
+
 SET AGENT_JAR="agent-client\target\agent-client-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
 IF NOT EXIST %AGENT_JAR% (
@@ -14,9 +16,9 @@ echo Lancement de 50 agents en arrière-plan...
 
 for /L %%i in (1,1,50) do (
     REM Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
-    set "NODE_ID=load-test-%%i"
+    set "NODE_ID=agent-%%i"
     if %%i LSS 10 (
-        set "NODE_ID=load-test-0%%i"
+        set "NODE_ID=agent-0%%i"
     )
 
     echo Lancement de l'agent !NODE_ID!
