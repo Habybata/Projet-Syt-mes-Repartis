@@ -26,9 +26,19 @@ public class DatabaseManager {
         try {
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl(JDBC_URL);
+            
+            // Optimisation pour SQLite : mode WAL et gestion des verrous
+            config.addDataSourceProperty("journal_mode", "WAL");
+            config.addDataSourceProperty("synchronous", "NORMAL");
+            config.addDataSourceProperty("foreign_keys", "true");
+            
+            // Limitation du pool pour éviter les conflits SQLite
+            config.setMaximumPoolSize(10); // Augmenté avec WAL, mais géré par Hikari
+            config.setConnectionTimeout(30000); // 30 secondes de timeout
+            
             dataSource = new HikariDataSource(config);
             createMetricsTable();
-            logger.info("Base de données initialisée avec succès.");
+            logger.info("Base de données initialisée avec succès (Mode WAL activé).");
         } catch (Exception e) {
             logger.error("Échec de l'initialisation de la base de données.", e);
             throw new RuntimeException(e);
@@ -43,13 +53,13 @@ public class DatabaseManager {
         try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
             
-            // Migration simple si les colonnes manquent (pour les anciennes bases)
+            // Migration simple si les colonnes manquent
             try {
                 stmt.execute("ALTER TABLE metrics ADD COLUMN services TEXT;");
+            } catch (SQLException ignored) {}
+            try {
                 stmt.execute("ALTER TABLE metrics ADD COLUMN ports TEXT;");
-            } catch (SQLException ignored) {
-                // Colonnes déjà présentes
-            }
+            } catch (SQLException ignored) {}
         }
     }
 
@@ -68,15 +78,15 @@ public class DatabaseManager {
             pstmt.setString(10, gson.toJson(metric.getPorts()));
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            logger.error("Erreur lors de l'insertion des métriques pour {}", metric.getNodeId(), e);
+            logger.error("Erreur lors de l'insertion des métriques pour {} : {}", metric.getNodeId(), e.getMessage());
         }
     }
 
     public List<MetricData> getLatestMetrics(String nodeId, int limit) {
         List<MetricData> metrics = new ArrayList<>();
-        String sql = "SELECT * FROM metrics WHERE nodeId LIKE ? ORDER BY timestamp DESC LIMIT ?;";
+        String sql = "SELECT * FROM metrics WHERE nodeId = ? ORDER BY timestamp DESC LIMIT ?;";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, "%" + nodeId + "%");
+            pstmt.setString(1, nodeId);
             pstmt.setInt(2, limit);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -90,7 +100,6 @@ public class DatabaseManager {
                     metric.setDiskUsage(rs.getDouble("diskUsage"));
                     metric.setUptime(rs.getLong("uptime"));
                     
-                    // Désérialisation des Maps
                     metric.setServices(gson.fromJson(rs.getString("services"), 
                         new TypeToken<Map<String, String>>(){}.getType()));
                     metric.setPorts(gson.fromJson(rs.getString("ports"), 
@@ -100,7 +109,7 @@ public class DatabaseManager {
                 }
             }
         } catch (SQLException e) {
-            logger.error("Erreur lors de la récupération des métriques pour {}", nodeId, e);
+            logger.error("Erreur lors de la récupération des métriques pour {} : {}", nodeId, e.getMessage());
         }
         return metrics;
     }

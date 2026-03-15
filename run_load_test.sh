@@ -16,7 +16,7 @@ echo "Lancement de 50 agents en arrière-plan..."
 for i in {1..50}
 do
    # Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
-   NODE_ID=$(printf "agent-%02d" $i)
+   NODE_ID=$(printf "load-test-%02d" $i)
 
    # Lance l'agent en arrière-plan, redirigeant sa sortie pour ne pas encombrer le terminal
    java -jar $AGENT_JAR $NODE_ID > /dev/null 2>&1 &

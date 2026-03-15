@@ -13,12 +13,12 @@ IF NOT EXIST %AGENT_JAR% (
     goto :eof
 )
 
-echo Lancement de 50 agents en arrière-plan...
+echo Lancement de 100 agents en arrière-plan...
 
-for /L %%i in (1,1,50) do (
+for /L %%i in (1,1,100) do (
     REM Formatage de l'ID avec un zéro pour les nombres < 10 (ex: agent-01)
     set "NODE_ID=agent-%%i"
-    if %%i LSS 10 (
+    if %%i LSS 100 (
         set "NODE_ID=agent-0%%i"
     )
 
