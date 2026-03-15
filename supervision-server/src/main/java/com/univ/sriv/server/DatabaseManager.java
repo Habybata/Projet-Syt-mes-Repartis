@@ -18,7 +18,7 @@ import java.util.Map;
  */
 public class DatabaseManager {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseManager.class);
-    private static final String JDBC_URL = "jdbc:sqlite:supervision.db";
+    private static final String JDBC_URL = "jdbc:sqlite:supervision.db?busy_timeout=5000";
     private HikariDataSource dataSource;
     private final Gson gson = new Gson();
 
@@ -38,7 +38,7 @@ public class DatabaseManager {
             
             dataSource = new HikariDataSource(config);
             createMetricsTable();
-            logger.info("Base de données initialisée avec succès (Mode WAL activé).");
+            logger.info("Base de données initialisée avec succès (Mode WAL et index activés).");
         } catch (Exception e) {
             logger.error("Échec de l'initialisation de la base de données.", e);
             throw new RuntimeException(e);
@@ -50,8 +50,11 @@ public class DatabaseManager {
                      "id INTEGER PRIMARY KEY AUTOINCREMENT, nodeId TEXT NOT NULL, timestamp INTEGER NOT NULL," +
                      "os TEXT, cpuType TEXT, cpuLoad REAL, memoryLoad REAL, diskUsage REAL, uptime INTEGER," +
                      "services TEXT, ports TEXT);";
+        String indexSql = "CREATE INDEX IF NOT EXISTS idx_node_timestamp ON metrics (nodeId, timestamp DESC);";
+        
         try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
+            stmt.execute(indexSql);
             
             // Migration simple si les colonnes manquent
             try {

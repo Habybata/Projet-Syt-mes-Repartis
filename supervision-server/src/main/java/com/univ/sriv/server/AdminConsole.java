@@ -84,11 +84,7 @@ public class AdminConsole implements Runnable {
         List<MetricData> metrics = dbManager.getLatestMetrics(nodeId, 5);
         if (metrics.isEmpty()) System.out.println("Aucune métrique trouvée.");
         else {
-            metrics.forEach(m -> {
-                System.out.println(m.toString());
-                System.out.println("  Services : " + m.getServices());
-                System.out.println("  Ports    : " + m.getPorts());
-            });
+            metrics.forEach(m -> System.out.println(m.toString()));
         }
         System.out.println("---------------------------------------");
     }
