@@ -24,5 +24,5 @@ do
    echo "Agent $NODE_ID lancé."
 done
 
-echo "10 agents ont été lancés. Surveillez la console du serveur pour voir leur activité."
+echo "100 agents ont été lancés. Surveillez la console du serveur pour voir leur activité."
 echo "Pour arrêter les agents, vous devrez utiliser 'pkill -f agent-client' ou les tuer manuellement."

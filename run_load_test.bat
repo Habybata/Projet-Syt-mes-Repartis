@@ -22,7 +22,7 @@ set "NUM_AGENTS=%~1"
 set "MAX_HEAP=%~2"
 set "PAUSE_SEC=%~3"
 
-if "%NUM_AGENTS%"=="" set "NUM_AGENTS=50"
+if "%NUM_AGENTS%"=="" set "NUM_AGENTS=100"
 if "%MAX_HEAP%"=="" set "MAX_HEAP=128m"
 if "%PAUSE_SEC%"=="" set "PAUSE_SEC=1"
 
@@ -31,22 +31,25 @@ set "JAVA_OPTS=-Xms64m -Xmx%MAX_HEAP% -XX:MaxRAMPercentage=30 -XX:+UseG1GC"
 
 echo Lancement de %NUM_AGENTS% agents en arrière-plan (max heap = %MAX_HEAP%, pause = %PAUSE_SEC%s)...
 
-echo NOTE: 50 JVMs utilisent beaucoup de mémoire. Si vous dépassez la mémoire, réduisez le nombre d'agents ou le paramètre Xmx.
+echo NOTE: 100 JVMs utilisent beaucoup de mémoire. Si vous dépassez la mémoire, réduisez le nombre d'agents ou le paramètre Xmx.
 
-echo Pour démarrer avec : run_load_test.bat 50 64m 2
+echo Pour démarrer avec : run_load_test.bat 100 64m 2
 
-for /L %%i in (1,1,50) do (
+for /L %%i in (1,1,%NUM_AGENTS%) do (
     REM Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
     set "NODE_ID=agent-%%i"
-    if %%i LSS 50 (
+    if %%i LSS 100 (
+        set "NODE_ID=agent-0%%i"
+    )
+    if %%i LSS 100 (
         set "NODE_ID=agent-0%%i"
     )
 
     echo [DÉMARRAGE] !NODE_ID! en cours...
 
     REM Lance l'agent en arrière-plan sans ouvrir de nouvelle fenêtre de console
-    START /B java -jar %AGENT_JAR% !NODE_ID!
+    START /B java %JAVA_OPTS% -jar %AGENT_JAR% !NODE_ID!
 )
 
-echo 50 agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
+echo 100 agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
 echo Pour arrêter les agents, vous devrez utiliser la commande 'taskkill /IM java.exe /F' (attention, cela peut fermer d'autres applications Java).
