@@ -11,9 +11,9 @@ if [ ! -f "$AGENT_JAR" ]; then
     exit 1
 fi
 
-echo "Lancement de 50 agents en arrière-plan..."
+echo "Lancement de 100 agents en arrière-plan..."
 
-for i in {1..50}
+for i in {1..10}
 do
    # Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
    NODE_ID=$(printf "load-test-%02d" $i)
@@ -24,5 +24,5 @@ do
    echo "Agent $NODE_ID lancé."
 done
 
-echo "50 agents ont été lancés. Surveillez la console du serveur pour voir leur activité."
+echo "100 agents ont été lancés. Surveillez la console du serveur pour voir leur activité."
 echo "Pour arrêter les agents, vous devrez utiliser 'pkill -f agent-client' ou les tuer manuellement."
