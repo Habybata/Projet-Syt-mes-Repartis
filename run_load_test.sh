@@ -11,18 +11,28 @@ if [ ! -f "$AGENT_JAR" ]; then
     exit 1
 fi
 
-echo "Lancement de 100 agents en arrière-plan..."
+NUM_AGENTS="${1:-100}"
+PAUSE_SEC="${2:-1}"
 
-for i in {1..10}
+echo "Lancement de $NUM_AGENTS agents en arrière-plan..."
+
+for i in $(seq 1 "$NUM_AGENTS")
 do
-   # Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
-   NODE_ID=$(printf "load-test-%02d" $i)
+   if [ "$i" -lt 10 ]; then
+       NODE_ID=$(printf "agent-%02d" "$i")
+   else
+       NODE_ID=$(printf "agent-%d" "$i")
+   fi
+
+   echo "[DÉMARRAGE] $NODE_ID en cours..."
 
    # Lance l'agent en arrière-plan, redirigeant sa sortie pour ne pas encombrer le terminal
-   java -jar $AGENT_JAR $NODE_ID > /dev/null 2>&1 &
+   java -jar "$AGENT_JAR" "$NODE_ID" > /dev/null 2>&1 &
 
-   echo "Agent $NODE_ID lancé."
+   if [ "$PAUSE_SEC" -gt 0 ]; then
+       sleep "$PAUSE_SEC"
+   fi
 done
 
-echo "100 agents ont été lancés. Surveillez la console du serveur pour voir leur activité."
+echo "$NUM_AGENTS agents ont été lancés. Surveillez la console du serveur pour voir leur activité."
 echo "Pour arrêter les agents, vous devrez utiliser 'pkill -f agent-client' ou les tuer manuellement."

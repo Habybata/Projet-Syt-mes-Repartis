@@ -36,20 +36,21 @@ echo NOTE: 100 JVMs utilisent beaucoup de mémoire. Si vous dépassez la mémoir
 echo Pour démarrer avec : run_load_test.bat 100 64m 2
 
 for /L %%i in (1,1,%NUM_AGENTS%) do (
-    REM Formatte l'ID du noeud avec un zéro pour les nombres < 10 (ex: agent-01)
+    REM Formatte l'ID du nœud avec un zéro uniquement pour les nombres < 10
     set "NODE_ID=agent-%%i"
-    if %%i LSS 100 (
-        set "NODE_ID=agent-0%%i"
-    )
-    if %%i LSS 100 (
+    if %%i LSS 10 (
         set "NODE_ID=agent-0%%i"
     )
 
     echo [DÉMARRAGE] !NODE_ID! en cours...
 
-    REM Lance l'agent en arrière-plan sans ouvrir de nouvelle fenêtre de console
-    START /B java %JAVA_OPTS% -jar %AGENT_JAR% !NODE_ID!
+    REM Lance l'agent en arrière-plan sans ouvrir une nouvelle fenêtre de console
+    START /B "" java %JAVA_OPTS% -jar %AGENT_JAR% !NODE_ID! >nul 2>&1
+
+    if not "%PAUSE_SEC%"=="" (
+        timeout /t %PAUSE_SEC% /nobreak >nul
+    )
 )
 
-echo 100 agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
+echo %NUM_AGENTS% agents ont été lancés. Surveillez la console du serveur pour voir leur activité.
 echo Pour arrêter les agents, vous devrez utiliser la commande 'taskkill /IM java.exe /F' (attention, cela peut fermer d'autres applications Java).
