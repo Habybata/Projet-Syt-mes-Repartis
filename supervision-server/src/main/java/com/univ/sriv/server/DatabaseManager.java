@@ -1,61 +1,88 @@
 package com.univ.sriv.server;
 
+import java.io.File;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.univ.sriv.model.MetricData;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Gère la base de données, y compris le pool de connexions et les requêtes.
  */
 public class DatabaseManager {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseManager.class);
-    private static final String JDBC_URL = "jdbc:sqlite:supervision.db?busy_timeout=5000";
+    private static final String DEFAULT_DB_FILE = "supervision.db";
     private HikariDataSource dataSource;
     private final Gson gson = new Gson();
 
     public void initialize() {
         try {
+            String dbPath = resolveDatabasePath();
+            logger.info("Initialisation de la base SQLite à l'emplacement : {}", dbPath);
+
             HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(JDBC_URL);
-            
+            config.setJdbcUrl("jdbc:sqlite:" + dbPath + "?busy_timeout=5000");
+
             // Optimisation pour SQLite : mode WAL et gestion des verrous
             config.addDataSourceProperty("journal_mode", "WAL");
             config.addDataSourceProperty("synchronous", "NORMAL");
             config.addDataSourceProperty("foreign_keys", "true");
-            
+
             // Limitation du pool pour éviter les conflits SQLite
-            config.setMaximumPoolSize(10); // Augmenté avec WAL, mais géré par Hikari
-            config.setConnectionTimeout(30000); // 30 secondes de timeout
-            
+            config.setMaximumPoolSize(10);
+            config.setConnectionTimeout(30000);
+
             dataSource = new HikariDataSource(config);
             createMetricsTable();
             logger.info("Base de données initialisée avec succès (Mode WAL et index activés).");
         } catch (Exception e) {
-            logger.error("Échec de l'initialisation de la base de données.", e);
-            throw new RuntimeException(e);
+            logger.error("Échec de l'initialisation de la base de données. Le serveur continuera sans persistance.", e);
+            dataSource = null;
         }
     }
 
+    private String resolveDatabasePath() {
+        File currentDir = new File(".").getAbsoluteFile();
+        File defaultDbFile = new File(currentDir, DEFAULT_DB_FILE);
+
+        if (defaultDbFile.getParentFile() != null && defaultDbFile.getParentFile().canWrite()) {
+            return defaultDbFile.getAbsolutePath();
+        }
+
+        File fallbackDir = new File(System.getProperty("java.io.tmpdir"));
+        File fallbackDb = new File(fallbackDir, DEFAULT_DB_FILE);
+        logger.warn("Le dossier courant n'est pas accessible en écriture. Utilisation du fallback : {}", fallbackDb.getAbsolutePath());
+        return fallbackDb.getAbsolutePath();
+    }
+
     private void createMetricsTable() throws SQLException {
+        if (dataSource == null) {
+            throw new SQLException("Le pool de connexions n'est pas initialisé.");
+        }
+
         String sql = "CREATE TABLE IF NOT EXISTS metrics (" +
                      "id INTEGER PRIMARY KEY AUTOINCREMENT, nodeId TEXT NOT NULL, timestamp INTEGER NOT NULL," +
                      "os TEXT, cpuType TEXT, cpuLoad REAL, memoryLoad REAL, diskUsage REAL, uptime INTEGER," +
                      "services TEXT, ports TEXT);";
         String indexSql = "CREATE INDEX IF NOT EXISTS idx_node_timestamp ON metrics (nodeId, timestamp DESC);";
-        
+
         try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
             stmt.execute(indexSql);
-            
+
             // Migration simple si les colonnes manquent
             try {
                 stmt.execute("ALTER TABLE metrics ADD COLUMN services TEXT;");
@@ -67,6 +94,11 @@ public class DatabaseManager {
     }
 
     public void insertMetric(MetricData metric) {
+        if (dataSource == null) {
+            logger.warn("Base de données indisponible, les métriques ne seront pas persistées pour {}.", metric.getNodeId());
+            return;
+        }
+
         String sql = "INSERT INTO metrics(nodeId, timestamp, os, cpuType, cpuLoad, memoryLoad, diskUsage, uptime, services, ports) VALUES(?,?,?,?,?,?,?,?,?,?);";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, metric.getNodeId());
@@ -86,6 +118,10 @@ public class DatabaseManager {
     }
 
     public List<MetricData> getLatestMetrics(String nodeId, int limit) {
+        if (dataSource == null) {
+            return new ArrayList<>();
+        }
+
         List<MetricData> metrics = new ArrayList<>();
         String sql = "SELECT * FROM metrics WHERE nodeId = ? ORDER BY timestamp DESC LIMIT ?;";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -102,12 +138,12 @@ public class DatabaseManager {
                     metric.setMemoryLoad(rs.getDouble("memoryLoad"));
                     metric.setDiskUsage(rs.getDouble("diskUsage"));
                     metric.setUptime(rs.getLong("uptime"));
-                    
-                    metric.setServices(gson.fromJson(rs.getString("services"), 
+
+                    metric.setServices(gson.fromJson(rs.getString("services"),
                         new TypeToken<Map<String, String>>(){}.getType()));
-                    metric.setPorts(gson.fromJson(rs.getString("ports"), 
+                    metric.setPorts(gson.fromJson(rs.getString("ports"),
                         new TypeToken<Map<Integer, Integer>>(){}.getType()));
-                        
+
                     metrics.add(metric);
                 }
             }
