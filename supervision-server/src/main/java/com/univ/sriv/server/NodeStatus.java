@@ -1,7 +1,5 @@
 package com.univ.sriv.server;
 
-import com.univ.sriv.model.MetricData;
-
 /**
  * Représente l'état d'un nœud (agent) suivi par le serveur.
  */
