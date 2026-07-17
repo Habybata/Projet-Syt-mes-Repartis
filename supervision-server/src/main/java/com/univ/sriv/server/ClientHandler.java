@@ -1,16 +1,17 @@
 package com.univ.sriv.server;
 
-import com.google.gson.Gson;
-import com.univ.sriv.model.MetricData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.univ.sriv.model.MetricData;
 
 /**
  * Traite la connexion d'un client dans un thread dédié du pool.
@@ -63,6 +64,14 @@ public class ClientHandler implements Runnable {
 
                 // Insère en base
                 dbManager.insertMetric(metric);
+
+                // Affichage direct des métriques dans la console du serveur
+                System.out.printf("[METRICS] %s | CPU=%.2f%% | MEM=%.2f%% | DISK=%.2f%% | UPTIME=%d s%n",
+                        metric.getNodeId(),
+                        metric.getCpuLoad(),
+                        metric.getMemoryLoad(),
+                        metric.getDiskUsage(),
+                        metric.getUptime());
 
                 // Journalisation des alertes de dépassement de seuil (> 90%) côté serveur
                 if (metric.getCpuLoad() > 90.0) {
